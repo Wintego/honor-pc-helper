@@ -14,7 +14,7 @@ A Windows system tray utility for managing HONOR laptop hardware features. Uses 
 
 ## Screenshot
 
-![Honor PC Helper](Assets/Screenshot.png)
+![Honor PC Helper](Assets/Screenshot-en.png)
 
 ## Usage
 
