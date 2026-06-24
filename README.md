@@ -12,9 +12,13 @@ Windows-утилита для управления аппаратными фун
 - **Горячие клавиши** — глобальные сочетания для окон и мультимедиа
 - **Автозапуск** — старт вместе с Windows
 
+## Скриншот
+
+![Honor PC Helper](Assets/Screenshot.png)
+
 ## Использование
 
-Скачайте `HonorPCHelper.exe` из [последнего релиза](https://github.com/anomalyco/HonorPCHelper/releases/latest) и запустите. Установка не требуется.
+Скачайте `HonorPCHelper.exe` из [последнего релиза](https://github.com/Wintego/honor-pc-helper/releases/latest) и запустите. Установка не требуется.
 
 При первом изменении аппаратной настройки Windows запросит права администратора для создания служебной задачи.
 
