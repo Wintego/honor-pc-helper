@@ -41,6 +41,7 @@ internal static partial class NativeMethods
     internal const uint DigcfPresent = 0x00000002;
     internal const uint DigcfDeviceInterface = 0x00000010;
     internal const uint GenericRead = 0x80000000;
+    internal const uint GenericWrite = 0x40000000;
     internal const uint FileShareRead = 0x00000001;
     internal const uint FileShareWrite = 0x00000002;
     internal const uint OpenExisting = 3;
@@ -242,6 +243,14 @@ internal static partial class NativeMethods
     internal static partial SafeFileHandle CreateFile(
         string fileName, uint desiredAccess, uint shareMode, IntPtr securityAttributes,
         uint creationDisposition, uint flagsAndAttributes, IntPtr templateFile);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool DeviceIoControl(
+        SafeFileHandle device, uint ioControlCode,
+        [In] byte[] inBuffer, uint inBufferSize,
+        IntPtr outBuffer, uint outBufferSize,
+        out uint bytesReturned, IntPtr overlapped);
 
     internal static string GetDevicePath(IntPtr set, ref SpDeviceInterfaceData data)
     {

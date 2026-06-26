@@ -8,7 +8,7 @@ internal sealed class PowerModeEventService : IDisposable
     private readonly Action<KeyboardBacklightLevel> _onBacklightChanged;
     private ManagementEventWatcher? _watcher;
     private long _lastEventTime;
-    private bool _currentState = HardwareSettings.PerformanceModeActive;
+    private volatile bool _currentState = HardwareSettings.PerformanceModeActive;
 
     internal PowerModeEventService(
         Action<bool> onModeChanged,

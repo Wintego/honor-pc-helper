@@ -90,7 +90,11 @@ internal sealed class TouchpadBrightnessService : IDisposable
 
             try
             {
-                BrightnessController.Change(direction == 0x01 ? 5 : -5);
+                var up = direction == 0x01;
+                // Сначала пробуем виртуальный HID-драйвер (нативный OSD Windows).
+                // Если драйвера нет - откат на WMI (без OSD).
+                if (!BrightnessVHid.TrySend(up))
+                    BrightnessController.Change(up ? 5 : -5);
             }
             catch (Exception exception)
             {

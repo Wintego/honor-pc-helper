@@ -17,6 +17,35 @@ internal static class HardwareSettings
     private const string PendingHardwareCommandValue = "PendingHardwareCommand";
     private const string SensorSnapshotValue = "SensorSnapshot";
 
+    internal readonly record struct TooltipState(
+        string? SensorSnapshot,
+        bool PerformanceModeActive,
+        KeyboardBacklightLevel? KeyboardBacklight,
+        BatteryProtectionMode? BatteryProtection);
+
+    /// <summary>
+    /// Reads every value the tray tooltip needs through a single registry open
+    /// instead of one open per property.
+    /// </summary>
+    internal static TooltipState ReadTooltipState()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(RegistryPath);
+        if (key is null)
+            return new TooltipState(null, false, null, null);
+
+        var snapshot = key.GetValue(SensorSnapshotValue) as string;
+        var performance = key.GetValue(PerformanceModeValue) is int p && p != 0;
+        var backlight = Enum.TryParse<KeyboardBacklightLevel>(
+            key.GetValue(KeyboardBacklightValue) as string, out var level)
+            ? level
+            : (KeyboardBacklightLevel?)null;
+        var battery = Enum.TryParse<BatteryProtectionMode>(
+            key.GetValue(BatteryProtectionValue) as string, out var mode)
+            ? mode
+            : (BatteryProtectionMode?)null;
+        return new TooltipState(snapshot, performance, backlight, battery);
+    }
+
     internal static string? SensorSnapshot
     {
         get

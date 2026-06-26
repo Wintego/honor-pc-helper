@@ -27,9 +27,10 @@ internal sealed class KeyboardBacklightController
             _ => throw new ArgumentOutOfRangeException(nameof(level))
         };
 
+        using var session = new HonorWmiSession();
         try
         {
-            HonorWmi.Call(SetModeCommand | ((ulong)mode << 16));
+            session.Call(SetModeCommand | ((ulong)mode << 16));
         }
         catch (HonorWmiCommandException exception) when (exception.ErrorCode == 1)
         {
@@ -40,9 +41,9 @@ internal sealed class KeyboardBacklightController
                 KeyboardBacklightLevel.High => 100,
                 _ => 0
             };
-            HonorWmi.Call(SetModeCommand | ((ulong)ModeAuto << 16));
+            session.Call(SetModeCommand | ((ulong)ModeAuto << 16));
             Thread.Sleep(10);
-            HonorWmi.Call(SetAutoLevelCommand | ((ulong)brightness << 16));
+            session.Call(SetAutoLevelCommand | ((ulong)brightness << 16));
         }
     }
 

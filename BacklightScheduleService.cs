@@ -54,10 +54,17 @@ internal sealed class BacklightScheduleService : IDisposable
                 ? HardwareSettings.BacklightScheduleLevel
                 : KeyboardBacklightLevel.Off;
 
-            if ((force || HardwareSettings.KeyboardBacklight != level)
-                && await PrivilegedHardware.TryRunBacklightTaskAsync(level))
+            try
             {
-                HardwareSettings.KeyboardBacklight = level;
+                if ((force || HardwareSettings.KeyboardBacklight != level)
+                    && await PrivilegedHardware.TryRunBacklightTaskAsync(level))
+                {
+                    HardwareSettings.KeyboardBacklight = level;
+                }
+            }
+            catch (Exception exception)
+            {
+                AppLog.Error("Backlight schedule hardware command failed", exception);
             }
 
             ScheduleNextCheck(now);
@@ -83,6 +90,11 @@ internal sealed class BacklightScheduleService : IDisposable
         catch (Exception exception)
         {
             AppLog.Error("Backlight schedule failed", exception);
+        }
+        finally
+        {
+            if (!_disposed && HardwareSettings.BacklightScheduleEnabled)
+                ScheduleNextCheck(DateTime.Now);
         }
     }
 

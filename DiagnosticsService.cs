@@ -1,12 +1,17 @@
+using System.Management;
+
 namespace HonorPCHelper;
 
 internal static class DiagnosticsService
 {
+    private static long _powerCacheTicks;
+    private static double? _powerCache;
     internal static string BuildCompactToolTip()
     {
+        var state = HardwareSettings.ReadTooltipState();
         var hasHardwareState = HardwareSensorSnapshot.TryParse(
-            HardwareSettings.SensorSnapshot, out var hardwareState) && hardwareState.IsFresh;
-        var mode = HardwareSettings.PerformanceModeActive
+            state.SensorSnapshot, out var hardwareState) && hardwareState.IsFresh;
+        var mode = state.PerformanceModeActive
             ? L.T("производительный", "performance")
             : L.T("умный", "smart");
         var backlightLevel = hasHardwareState
@@ -15,9 +20,9 @@ internal static class DiagnosticsService
                 0x02 => KeyboardBacklightLevel.Off,
                 0x03 => KeyboardBacklightLevel.Low,
                 0x04 => KeyboardBacklightLevel.High,
-                _ => HardwareSettings.KeyboardBacklight
+                _ => state.KeyboardBacklight
             }
-            : HardwareSettings.KeyboardBacklight;
+            : state.KeyboardBacklight;
         var backlight = backlightLevel switch
         {
             KeyboardBacklightLevel.Off => L.T("выкл.", "off"),
@@ -27,7 +32,7 @@ internal static class DiagnosticsService
         };
         var protection = hasHardwareState && hardwareState.ChargeStart.HasValue && hardwareState.ChargeEnd.HasValue
             ? $"{hardwareState.ChargeStart}–{hardwareState.ChargeEnd}%"
-            : HardwareSettings.BatteryProtection switch
+            : state.BatteryProtection switch
             {
                 BatteryProtectionMode.Home => "40–70%",
                 BatteryProtectionMode.Office => "70–90%",
@@ -41,6 +46,10 @@ internal static class DiagnosticsService
             L.T($"Подсветка: {backlight}", $"Backlight: {backlight}"),
             L.T($"Ограничение заряда: {protection}", $"Charge limit: {protection}")
         };
+
+        var power = ReadBatteryPowerWatts();
+        if (power.HasValue)
+            lines.Add(L.T($"Питание: {FormatPower(power.Value)}", $"Power: {FormatPower(power.Value)}"));
 
         if (hasHardwareState)
         {
@@ -61,4 +70,51 @@ internal static class DiagnosticsService
     private static string FormatTemperature(int? value) => value.HasValue ? $"{value}°C" : "?";
 
     private static string FormatFan(int? value) => value?.ToString() ?? "?";
+
+    private static string FormatPower(double watts)
+    {
+        if (Math.Abs(watts) < 0.05)
+            return L.T("0 Вт", "0 W");
+        var sign = watts > 0 ? "+" : "";
+        return L.T($"{sign}{watts:0.0} Вт", $"{sign}{watts:0.0} W");
+    }
+
+    // Charge/discharge power in watts: positive while charging, negative while
+    // discharging. Read from the standard root\wmi BatteryStatus class, which is
+    // available without administrator rights, and cached briefly so repeated
+    // tooltip refreshes during a hover don't re-query WMI each time.
+    private static double? ReadBatteryPowerWatts()
+    {
+        if (_powerCache.HasValue
+            && Environment.TickCount64 - Interlocked.Read(ref _powerCacheTicks) < 2000)
+            return _powerCache;
+
+        double? result = null;
+        try
+        {
+            var scope = new ManagementScope(@"\\.\root\wmi");
+            scope.Connect();
+            using var searcher = new ManagementObjectSearcher(
+                scope, new ObjectQuery("SELECT ChargeRate, DischargeRate FROM BatteryStatus"));
+            using var items = searcher.Get();
+            foreach (var item in items.Cast<ManagementObject>())
+            {
+                using (item)
+                {
+                    var charge = Convert.ToInt64(item["ChargeRate"] ?? 0L);
+                    var discharge = Convert.ToInt64(item["DischargeRate"] ?? 0L);
+                    result = (charge - discharge) / 1000.0;
+                }
+                break;
+            }
+        }
+        catch (Exception exception)
+        {
+            AppLog.Error("Could not read battery power", exception);
+        }
+
+        _powerCache = result;
+        Interlocked.Exchange(ref _powerCacheTicks, Environment.TickCount64);
+        return result;
+    }
 }

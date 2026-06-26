@@ -23,18 +23,19 @@ internal sealed class BatteryProtectionController
             _ => throw new ArgumentOutOfRangeException(nameof(mode))
         };
 
+        using var session = new HonorWmiSession();
         if (mode == BatteryProtectionMode.Disabled)
         {
-            SetThresholds(0, 0);
+            SetThresholds(session, 0, 0);
             Thread.Sleep(1000);
         }
 
-        SetThresholds(thresholds.Start, thresholds.End);
+        SetThresholds(session, thresholds.Start, thresholds.End);
     }
 
-    private static void SetThresholds(int start, int end)
+    private static void SetThresholds(HonorWmiSession session, int start, int end)
     {
         var command = SetThresholdsCommand | ((ulong)start << 16) | ((ulong)end << 24);
-        HonorWmi.Call(command);
+        session.Call(command);
     }
 }

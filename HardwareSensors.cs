@@ -44,11 +44,12 @@ internal static class HardwareSensorController
 
     internal static void ReadAndStore(string requestId)
     {
-        var backlightMode = ReadValue(KeyboardBacklightModeGetCommand, 1, "keyboard backlight mode");
-        var chargeStart = ReadValue(BatteryThresholdsGetCommand, 1, "battery charge start threshold");
-        var chargeEnd = ReadValue(BatteryThresholdsGetCommand, 2, "battery charge end threshold");
+        using var session = new HonorWmiSession();
+        var backlightMode = ReadValue(session, KeyboardBacklightModeGetCommand, 1, "keyboard backlight mode");
+        var (chargeStart, chargeEnd) = ReadBatteryThresholds(session);
         var snapshot = new HardwareSensorSnapshot(
-            DateTime.UtcNow, ReadFan(0), ReadFan(1), ReadTemperature(0x00), ReadTemperature(0x0E),
+            DateTime.UtcNow, ReadFan(session, 0), ReadFan(session, 1),
+            ReadTemperature(session, 0x00), ReadTemperature(session, 0x0E),
             backlightMode, chargeStart, chargeEnd);
         HardwareSettings.SensorSnapshot = snapshot.Serialize(requestId);
 
@@ -69,11 +70,11 @@ internal static class HardwareSensorController
         };
     }
 
-    private static int? ReadFan(byte index)
+    private static int? ReadFan(HonorWmiSession session, byte index)
     {
         try
         {
-            var output = HonorWmi.Call(FanSpeedGetCommand | ((ulong)index << 16));
+            var output = session.Call(FanSpeedGetCommand | ((ulong)index << 16));
             return output.Length >= 3 ? output[1] | (output[2] << 8) : null;
         }
         catch (Exception exception)
@@ -83,11 +84,11 @@ internal static class HardwareSensorController
         }
     }
 
-    private static int? ReadTemperature(byte zone)
+    private static int? ReadTemperature(HonorWmiSession session, byte zone)
     {
         try
         {
-            var output = HonorWmi.Call(TemperatureGetCommand | ((ulong)zone << 16));
+            var output = session.Call(TemperatureGetCommand | ((ulong)zone << 16));
             return output.Length >= 3 ? output[2] : null;
         }
         catch (Exception exception)
@@ -97,11 +98,28 @@ internal static class HardwareSensorController
         }
     }
 
-    private static int? ReadValue(ulong command, int offset, string name)
+    // Both charge thresholds come back in a single response, so read them together.
+    private static (int? Start, int? End) ReadBatteryThresholds(HonorWmiSession session)
     {
         try
         {
-            var output = HonorWmi.Call(command);
+            var output = session.Call(BatteryThresholdsGetCommand);
+            var start = output.Length > 1 ? (int?)output[1] : null;
+            var end = output.Length > 2 ? (int?)output[2] : null;
+            return (start, end);
+        }
+        catch (Exception exception)
+        {
+            AppLog.Error("Could not read battery charge thresholds", exception);
+            return (null, null);
+        }
+    }
+
+    private static int? ReadValue(HonorWmiSession session, ulong command, int offset, string name)
+    {
+        try
+        {
+            var output = session.Call(command);
             return output.Length > offset ? output[offset] : null;
         }
         catch (Exception exception)

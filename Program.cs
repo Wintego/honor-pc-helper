@@ -35,7 +35,7 @@ internal static class Program
         if (args.Length == 1 && args[0] == "--run-pending-hardware-command")
             return PrivilegedHardware.RunPendingCommand();
 
-        using var mutex = new Mutex(true, "HonorPCHelper.SingleInstance", out var createdNew);
+        using var mutex = new Mutex(false, "HonorPCHelper.SingleInstance", out var createdNew);
         if (!createdNew)
             return 0;
 
